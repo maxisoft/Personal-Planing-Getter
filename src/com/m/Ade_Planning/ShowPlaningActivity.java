@@ -9,6 +9,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.preference.PreferenceManager;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.*;
 import android.view.animation.Animation;
@@ -20,6 +21,8 @@ import com.m.Ade_Planning.process.PlanningImageGrabber;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -134,7 +137,15 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
     private void configWebView() {
         final WebSettings settings = webview.getSettings();
         settings.setBuiltInZoomControls(true);
-        settings.setDisplayZoomControls(false);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.HONEYCOMB){
+            try {
+                Method m = WebSettings.class.getMethod("setDisplayZoomControls", Boolean.TYPE);
+                m.invoke(settings, false);
+            } catch (NoSuchMethodException e) {
+            } catch (InvocationTargetException e) {
+            } catch (IllegalAccessException e) {
+            }
+        }
         settings.setUseWideViewPort(true);
         webview.setInitialScale(50);
     }
@@ -160,10 +171,11 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
                 try {
 
                     Display display = ShowPlaningActivity.this.getWindowManager().getDefaultDisplay();
-                    Point size = new Point();
-                    display.getSize(size);
-                    final int width = size.x;
-                    final int height = size.y;
+                    DisplayMetrics metrics = new DisplayMetrics();
+
+                    display.getMetrics(metrics);
+                    final int width = metrics.widthPixels;
+                    final int height = metrics.heightPixels;
                     String urltoload;
 
                     String filename = ShowPlaningActivity.this.storage.createFileName(preferences.getString("groupe", "TP1-B"), ShowPlaningActivity.this.date, width, height);
