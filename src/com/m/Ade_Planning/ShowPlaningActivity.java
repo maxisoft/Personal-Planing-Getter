@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.graphics.Point;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.preference.PreferenceManager;
@@ -23,15 +24,10 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class ShowPlaningActivity extends Activity implements CONSTANTS {
-    final private PlaningStorage storage = new PlaningStorage();
-    /**
-     * Called when the activity is first created.
-     */
-    private Button touchAndClick = null;
+    final private PlaningStorage storage = new PlaningStorage(); //gestionnaire de fichiers interne
+
     private WebView webview = null;
     private PlanningImageGrabber planning = null;
     private ProgressBar webViewProgressBar = null;
@@ -43,8 +39,6 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
     private Date date = new Date();
     private SharedPreferences preferences = null;
     private SharedPreferences.Editor prefeditor = null;
-    private Lock fetchlock = new ReentrantLock();
-    private Thread fetchThread = null;
     private Animation openrigth = null;
     private Animation closerigth = null;
     private Animation opendefault = null;
@@ -53,15 +47,18 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
     private Animation closeleft = null;
 
     @Override
+    /**
+     * Called when the activity is first created.
+     */
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         restoreFromSavedInstanceState(savedInstanceState);
         testFileWriting();
         preferences = PreferenceManager.getDefaultSharedPreferences(this.getApplicationContext());
         prefeditor = preferences.edit();
-        setContentView(R.layout.main);
-        widgetloads();
-        animationloads();
+        setContentView(R.layout.main);//parse le xml et "crée" la vue.
+        widgetLoads();
+        animationLoads();
         configWebView();
         planning = new PlanningImageGrabber(preferences.getString("groupe", "TP1-B").replace("-", ""));
         fetch_planning();
@@ -72,26 +69,17 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
         prevBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                ShowPlaningActivity.this.fetchlock.lock();
-                try {
-                    ShowPlaningActivity.this.date = PlaningUtils.prevWeek(ShowPlaningActivity.this.date);
-                } finally {
-                    ShowPlaningActivity.this.fetchlock.unlock();
-                }
-                ShowPlaningActivity.this.fetch_planning(ShowPlaningActivity.this.openrigth, ShowPlaningActivity.this.closeleft);
+
+                ShowPlaningActivity.this.date = PlaningUtils.prevWeek(ShowPlaningActivity.this.date);
+                ShowPlaningActivity.this.fetchPlanning(ShowPlaningActivity.this.openrigth, ShowPlaningActivity.this.closeleft);
             }
         });
 
         nextBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                ShowPlaningActivity.this.fetchlock.lock();
-                try {
-                    ShowPlaningActivity.this.date = PlaningUtils.nextWeek(ShowPlaningActivity.this.date);
-                } finally {
-                    ShowPlaningActivity.this.fetchlock.unlock();
-                }
-                ShowPlaningActivity.this.fetch_planning(ShowPlaningActivity.this.openleft, ShowPlaningActivity.this.closerigth);
+                ShowPlaningActivity.this.date = PlaningUtils.nextWeek(ShowPlaningActivity.this.date);
+                ShowPlaningActivity.this.fetchPlanning(ShowPlaningActivity.this.openleft, ShowPlaningActivity.this.closerigth);
             }
         });
 
@@ -125,7 +113,7 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
         }
     }
 
-    private void widgetloads() {
+    private void widgetLoads() {
         webview = (WebView) findViewById(R.id.webView);
         webViewProgressBar = (ProgressBar) findViewById(R.id.webViewProgressBar);
         dateTextView = (TextView) findViewById(R.id.dateTextView);
@@ -134,7 +122,7 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
         reloadBtn = (Button) findViewById(R.id.reloadBtn);
     }
 
-    private void animationloads() {
+    private void animationLoads() {
         openrigth = AnimationUtils.loadAnimation(this.getApplicationContext(), R.anim.openrigth);
         closerigth = AnimationUtils.loadAnimation(this.getApplicationContext(), R.anim.closerigth);
         opendefault = AnimationUtils.loadAnimation(this.getApplicationContext(), R.anim.opendefault);
@@ -152,10 +140,11 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
     }
 
     private void fetch_planning() {
-        fetch_planning(this.opendefault, this.closedefault);
+        fetchPlanning(this.opendefault, this.closedefault);
     }
 
-    private void fetch_planning(final Animation open, final Animation close) {
+    @SuppressWarnings("unchecked")
+    private void fetchPlanning(final Animation open, final Animation close) {
         this.webViewProgressBar.setVisibility(View.VISIBLE);
         this.reloadBtn.setVisibility(View.GONE);
         final boolean closeanimation = this.webview.getVisibility() == View.VISIBLE;
@@ -165,16 +154,9 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
         this.webview.setVisibility(View.GONE);
         this.updateDateTextView();
 
-        try {
-            if (this.fetchThread != null && this.fetchThread.isAlive()) {
-                this.fetchThread.join();
-            }
-        } catch (InterruptedException e) {
-        }
-        this.fetchThread = new Thread(new Runnable() {
+        AsyncTask task = new AsyncTask<Object, Void, Void>() {
             @Override
-            public void run() {
-                fetchlock.lock();
+            protected Void doInBackground(Object... params) {
                 try {
 
                     Display display = ShowPlaningActivity.this.getWindowManager().getDefaultDisplay();
@@ -243,12 +225,11 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
                             toast.show();
                         }
                     });
-                } finally {
-                    fetchlock.unlock();
                 }
+                return null;
             }
-        });
-        this.fetchThread.start();
+        };
+        task.execute();
     }
 
     private void updateDateTextView() {
@@ -278,15 +259,10 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
         this.uncheckItemsMenu();
         item.setChecked(!item.isChecked());
         String value = item.getTitle().toString();
-        fetchlock.lock();
         boolean change = !preferences.getString("groupe", "TP1-B").equals(value);
-        try {
-            this.prefeditor.putString("groupe", value);
-            this.prefeditor.commit();
-            this.planning = new PlanningImageGrabber(preferences.getString("groupe", "TP1-B").replace("-", ""));
-        } finally {
-            fetchlock.unlock();
-        }
+        this.prefeditor.putString("groupe", value);
+        this.prefeditor.commit();
+        this.planning = new PlanningImageGrabber(preferences.getString("groupe", "TP1-B").replace("-", ""));
         if (change) {
             this.fetch_planning();
         }
