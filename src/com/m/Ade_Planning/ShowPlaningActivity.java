@@ -1,5 +1,6 @@
 package com.m.Ade_Planning;
 
+import android.app.ActionBar;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
@@ -15,7 +16,9 @@ import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.widget.*;
+import android.widget.ImageButton;
+import android.widget.ProgressBar;
+import android.widget.Toast;
 import com.m.Ade_Planning.process.PlanningImageGrabber;
 
 import java.io.File;
@@ -27,14 +30,11 @@ import java.util.Date;
 
 public class ShowPlaningActivity extends Activity implements CONSTANTS {
     final private PlaningStorage storage = new PlaningStorage(); //gestionnaire de fichiers interne
-
+    ActionBar actionBar = null;
     private WebView webview = null;
     private PlanningImageGrabber planning = null;
     private ProgressBar webViewProgressBar = null;
-    private TextView dateTextView = null;
-    private ImageButton prevBtn = null;
-    private ImageButton nextBtn = null;
-    private Button reloadBtn = null;
+    private ImageButton reloadBtn = null;
     private Menu menu = null;
     private Date date = new Date();
     private SharedPreferences preferences = null;
@@ -51,6 +51,7 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
      * Called when the activity is first created.
      */
     public void onCreate(Bundle savedInstanceState) {
+        this.setTheme(android.R.style.Theme_Holo);
         super.onCreate(savedInstanceState);
         restoreFromSavedInstanceState(savedInstanceState);
         testFileWriting();
@@ -66,23 +67,6 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
     }
 
     private void initBoutonListener() {
-        prevBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                ShowPlaningActivity.this.date = PlaningUtils.prevWeek(ShowPlaningActivity.this.date);
-                ShowPlaningActivity.this.fetchPlanning(ShowPlaningActivity.this.openrigth, ShowPlaningActivity.this.closeleft);
-            }
-        });
-
-        nextBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                ShowPlaningActivity.this.date = PlaningUtils.nextWeek(ShowPlaningActivity.this.date);
-                ShowPlaningActivity.this.fetchPlanning(ShowPlaningActivity.this.openleft, ShowPlaningActivity.this.closerigth);
-            }
-        });
-
         reloadBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -116,10 +100,7 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
     private void widgetLoads() {
         webview = (WebView) findViewById(R.id.webView);
         webViewProgressBar = (ProgressBar) findViewById(R.id.webViewProgressBar);
-        dateTextView = (TextView) findViewById(R.id.dateTextView);
-        prevBtn = (ImageButton) findViewById(R.id.prev);
-        nextBtn = (ImageButton) findViewById(R.id.next);
-        reloadBtn = (Button) findViewById(R.id.reloadBtn);
+        reloadBtn = (ImageButton) findViewById(R.id.reloadBtn);
     }
 
     private void animationLoads() {
@@ -136,7 +117,7 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
         settings.setBuiltInZoomControls(true);
         settings.setDisplayZoomControls(false);
         settings.setUseWideViewPort(true);
-        webview.setInitialScale(50);
+        webview.setInitialScale(45);
     }
 
     private void fetch_planning() {
@@ -152,7 +133,7 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
             this.webview.startAnimation(close);
         }
         this.webview.setVisibility(View.GONE);
-        this.updateDateTextView();
+        this.updateDateTitleActionBar();
 
         AsyncTask task = new AsyncTask<Object, Void, Void>() {
             @Override
@@ -232,7 +213,7 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
         task.execute();
     }
 
-    private void updateDateTextView() {
+    private void updateDateTitleActionBar() {
         // Get calendar set to current date and time
         Calendar c = Calendar.getInstance();
         c.setTime(ShowPlaningActivity.this.date);
@@ -240,22 +221,36 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
         DateFormat df = new SimpleDateFormat("dd/MM");
         String s = df.format(c.getTime());
         c.add(Calendar.DATE, 6);
-        s += " -> " + df.format(c.getTime()) + " | " + this.preferences.getString("groupe", "TP1-B");
-        this.dateTextView.setText("  " + s + "  ");
+        s += " - " + df.format(c.getTime());
+        if (this.actionBar != null) {
+            this.actionBar.setTitle(s);
+        }
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        super.onCreateOptionsMenu(menu);
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.main, menu);
+        boolean ret = super.onCreateOptionsMenu(menu);
         this.menu = menu;
-        this.initTPItemMenu(this.preferences.getString("groupe", "TP1-B"));
-        return true;
+        this.actionBar = getActionBar();
+        this.updateDateTitleActionBar();
+        return ret;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.action_back:
+                this.date = PlaningUtils.prevWeek(ShowPlaningActivity.this.date);
+                this.fetchPlanning(ShowPlaningActivity.this.openrigth, ShowPlaningActivity.this.closeleft);
+                return true;
+            case R.id.action_forward:
+                this.date = PlaningUtils.nextWeek(ShowPlaningActivity.this.date);
+                this.fetchPlanning(ShowPlaningActivity.this.openleft, ShowPlaningActivity.this.closerigth);
+                return true;
+        }
+
         this.uncheckItemsMenu();
         item.setChecked(!item.isChecked());
         String value = item.getTitle().toString();
@@ -300,19 +295,11 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
     private void uncheckItemsMenu() {
         int size = this.menu.size();
         for (int i = 0; i < size; i++) {
-            this.menu.getItem(i).setChecked(false);
-        }
-    }
-
-    private void initTPItemMenu(String s) {
-        int size = this.menu.size();
-        for (int i = 0; i < size; i++) {
             MenuItem item = this.menu.getItem(i);
-            if (item.getTitle().toString().equals(s)) {
-                item.setChecked(true);
-            } else {
+            if (item.isCheckable()) {
                 item.setChecked(false);
             }
+
         }
     }
 
