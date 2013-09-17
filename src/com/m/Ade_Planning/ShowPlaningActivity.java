@@ -10,6 +10,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.preference.PreferenceManager;
+import android.text.Html;
 import android.util.Log;
 import android.view.*;
 import android.view.animation.Animation;
@@ -214,17 +215,21 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
     }
 
     private void updateDateTitleActionBar() {
+        if (this.actionBar == null) {
+            return;
+        }
         // Get calendar set to current date and time
         Calendar c = Calendar.getInstance();
-        c.setTime(ShowPlaningActivity.this.date);
+        c.setTime(this.date);
         c.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
         DateFormat df = new SimpleDateFormat("dd/MM");
         String s = df.format(c.getTime());
         c.add(Calendar.DATE, 6);
         s += " - " + df.format(c.getTime());
-        if (this.actionBar != null) {
-            this.actionBar.setTitle(s);
+        if (PlaningUtils.dateToADEWeek(this.date) == PlaningUtils.dateToADEWeek(new Date())) {
+            s = "<b>" + s + "</b>";
         }
+        this.actionBar.setTitle(Html.fromHtml(s));
     }
 
     @Override

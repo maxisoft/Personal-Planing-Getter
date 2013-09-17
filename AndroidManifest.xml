@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           package="com.m.Ade_Planning"
           android:versionCode="3"
-          android:versionName="3.0">
+          android:versionName="3.1">
 	<uses-sdk
 			android:minSdkVersion="11"
 			android:targetSdkVersion="13"/>
