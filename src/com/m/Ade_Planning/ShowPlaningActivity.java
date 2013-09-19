@@ -30,8 +30,10 @@ import java.util.Calendar;
 import java.util.Date;
 
 public class ShowPlaningActivity extends Activity implements CONSTANTS {
-    final private PlaningStorage storage = new PlaningStorage(); //gestionnaire de fichiers interne
-    ActionBar actionBar = null;
+    public static final String PREFERENCES_GROUPE_KEY = ShowPlaningActivity.class.getSimpleName() + ".groupe";
+    public static final String BUNDLE_DATE_KEY = ShowPlaningActivity.class.getSimpleName() + ".date";
+    private final PlaningStorage storage = new PlaningStorage(); //gestionnaire de fichiers internes
+    private ActionBar actionBar = null;
     private WebView webview = null;
     private PlanningImageGrabber planning = null;
     private ProgressBar webViewProgressBar = null;
@@ -48,9 +50,6 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
     private Animation closeleft = null;
 
     @Override
-    /**
-     * Called when the activity is first created.
-     */
     public void onCreate(Bundle savedInstanceState) {
         this.setTheme(android.R.style.Theme_Holo);
         super.onCreate(savedInstanceState);
@@ -62,12 +61,12 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
         widgetLoads();
         animationLoads();
         configWebView();
-        planning = new PlanningImageGrabber(preferences.getString("groupe", "TP1-B").replace("-", ""));
+        planning = new PlanningImageGrabber(getGroupePreference().replace("-", ""));
         fetch_planning();
-        initBoutonListener();
+        initBoutonsListener();
     }
 
-    private void initBoutonListener() {
+    private void initBoutonsListener() {
         reloadBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -94,7 +93,7 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
 
     private void restoreFromSavedInstanceState(Bundle savedInstanceState) {
         if (savedInstanceState != null) {
-            this.date.setTime(savedInstanceState.getLong("ShowPlaningActivity.date", date.getTime()));
+            this.date.setTime(savedInstanceState.getLong(BUNDLE_DATE_KEY, date.getTime()));
         }
     }
 
@@ -148,7 +147,7 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
                     final int height = size.y;
                     String urltoload;
 
-                    String filename = ShowPlaningActivity.this.storage.createFileName(preferences.getString("groupe", "TP1-B"), ShowPlaningActivity.this.date, width, height);
+                    String filename = ShowPlaningActivity.this.storage.createFileName(getGroupePreference(), ShowPlaningActivity.this.date, width, height);
                     if (ShowPlaningActivity.this.storage.fileExist(filename)) { //check if alrdy downloaded.
                         urltoload = ShowPlaningActivity.this.storage.createFileNameUrlAdress(filename);
                     } else {//download and try to store the img
@@ -164,10 +163,10 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
                                 urltoload = ShowPlaningActivity.this.storage.createFileNameUrlAdress(filename);
                             } else throw new IOException("Le fichier n'existe pas.");
                         } catch (Exception e) {
-                            Log.e("Ade Planning", "", e);
+                            Log.e(ADE_PLANNING_LOG_IDENTIFIER, "", e);
                         }
                     }
-                    Log.d("Ade Planning", "Webview Load url : " + urltoload);
+                    Log.d(ADE_PLANNING_LOG_IDENTIFIER, "Webview Load url : " + urltoload);
                     ShowPlaningActivity.this.webview.loadUrl(urltoload);
                     Runnable openwebview = new Runnable() {
                         @Override
@@ -183,6 +182,7 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
                             }
                             ShowPlaningActivity.this.webViewProgressBar.setVisibility(View.GONE);
                             ShowPlaningActivity.this.webview.startAnimation(open);
+
                         }
                     };
                     if (closeanimation) {
@@ -197,7 +197,7 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
                     ShowPlaningActivity.this.runOnUiThread(openwebview);
 
                 } catch (final Exception e) {
-                    Log.e("Ade Planning", "", e);
+                    Log.e(ADE_PLANNING_LOG_IDENTIFIER, "", e);
                     ShowPlaningActivity.this.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -240,33 +240,75 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
         this.menu = menu;
         this.actionBar = getActionBar();
         this.updateDateTitleActionBar();
+        initCheckableTPItemMenu(getGroupePreference());
         return ret;
+    }
+
+    private String getGroupePreference() {
+        return preferences.getString(PREFERENCES_GROUPE_KEY, "TP1-B");
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.action_back:
-                this.date = PlaningUtils.prevWeek(ShowPlaningActivity.this.date);
-                this.fetchPlanning(ShowPlaningActivity.this.openrigth, ShowPlaningActivity.this.closeleft);
+                prevCalendar();
                 return true;
             case R.id.action_forward:
-                this.date = PlaningUtils.nextWeek(ShowPlaningActivity.this.date);
-                this.fetchPlanning(ShowPlaningActivity.this.openleft, ShowPlaningActivity.this.closerigth);
+                nextCalendar();
+                return true;
+
+            case R.id.itemTP1A:
+            case R.id.itemTP1B:
+            case R.id.itemTP2B:
+            case R.id.itemTP2C:
+                this.uncheckItemsMenu();
+                item.setChecked(true);
+                String value = item.getTitle().toString();
+                boolean change = !getGroupePreference().equals(value);
+                this.prefeditor.putString(PREFERENCES_GROUPE_KEY, value);
+                this.prefeditor.commit();
+                this.planning = new PlanningImageGrabber(getGroupePreference().replace("-", ""));
+                if (change) {
+                    this.fetch_planning();
+                }
                 return true;
         }
+        return false;
+    }
 
-        this.uncheckItemsMenu();
-        item.setChecked(!item.isChecked());
-        String value = item.getTitle().toString();
-        boolean change = !preferences.getString("groupe", "TP1-B").equals(value);
-        this.prefeditor.putString("groupe", value);
-        this.prefeditor.commit();
-        this.planning = new PlanningImageGrabber(preferences.getString("groupe", "TP1-B").replace("-", ""));
-        if (change) {
-            this.fetch_planning();
+    private void initCheckableTPItemMenu(String s) {
+        assert s.startsWith("TP");
+        int size = this.menu.size();
+        for (int i = 0; i < size; i++) {
+            MenuItem item = this.menu.getItem(i);
+            if (item.isCheckable() && item.getTitle().toString().equals(s)) {
+                item.setChecked(true);
+            } else {
+                item.setChecked(false);
+            }
         }
-        return true;
+    }
+
+    private void uncheckItemsMenu() {
+        int size = this.menu.size();
+        for (int i = 0; i < size; i++) {
+            MenuItem item = this.menu.getItem(i);
+            if (item.isCheckable() && item.getTitle().toString().startsWith("TP")) {
+                item.setChecked(false);
+            }
+
+        }
+    }
+
+    private void prevCalendar() {
+        this.date = PlaningUtils.prevWeek(ShowPlaningActivity.this.date);
+        this.fetchPlanning(ShowPlaningActivity.this.openrigth, ShowPlaningActivity.this.closeleft);
+    }
+
+    private void nextCalendar() {
+        this.date = PlaningUtils.nextWeek(ShowPlaningActivity.this.date);
+        this.fetchPlanning(ShowPlaningActivity.this.openleft, ShowPlaningActivity.this.closerigth);
     }
 
     @Override
@@ -282,7 +324,7 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
                             try {
                                 file.delete();
                             } catch (final Exception e) {
-                                Log.e("Ade Planning", "", e);
+                                Log.e(ADE_PLANNING_LOG_IDENTIFIER, "", e);
                                 ShowPlaningActivity.this.runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
@@ -297,21 +339,10 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
                 }).create().show();
     }
 
-    private void uncheckItemsMenu() {
-        int size = this.menu.size();
-        for (int i = 0; i < size; i++) {
-            MenuItem item = this.menu.getItem(i);
-            if (item.isCheckable()) {
-                item.setChecked(false);
-            }
-
-        }
-    }
-
     @Override
     protected void onSaveInstanceState(Bundle bundle) {
         super.onSaveInstanceState(bundle);
-        bundle.putLong("ShowPlaningActivity.date", this.date.getTime());
+        bundle.putLong(BUNDLE_DATE_KEY, this.date.getTime());
     }
 
 }
