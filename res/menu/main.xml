@@ -1,15 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android" >
-	<item android:id="@+id/itemTP1A" android:title="TP1-A" android:checkable="true" android:checked="false"/>
-	<item android:id="@+id/itemTP1B" android:title="TP1-B" android:checkable="true" android:checked="true"/>
-	<item android:id="@+id/itemTP2B" android:title="TP2-B" android:checkable="true" android:checked="false"/>
-	<item android:id="@+id/itemTP2C" android:title="TP2-C" android:checkable="true" android:checked="false"/>
+	<item android:id="@+id/configgroupe"
+	      android:title="Configurer groupe"
+	      android:icon="@drawable/ic_action_settings"
+	      android:titleCondensed="Config grp">
+		<menu android:id="@+id/menuconfiggroupe">
+			<item android:id="@+id/itemTP1A" android:title="TP1-A" android:checkable="true" android:checked="false"/>
+			<item android:id="@+id/itemTP1B" android:title="TP1-B" android:checkable="true" android:checked="true"/>
+			<item android:id="@+id/itemTP2B" android:title="TP2-B" android:checkable="true" android:checked="false"/>
+			<item android:id="@+id/itemTP2C" android:title="TP2-C" android:checkable="true" android:checked="false"/>
+		</menu>
+	</item>
 	<item android:id="@+id/action_back"
 	      android:icon="@drawable/navigation_back"
 	      android:title="prev"
-	      android:showAsAction="ifRoom"/>
+	      android:showAsAction="always"/>
 	<item android:id="@+id/action_forward"
 	      android:icon="@drawable/navigation_forward"
 	      android:title="next"
-	      android:showAsAction="ifRoom"/>
+	      android:showAsAction="always"/>
+
+	<item
+			android:id="@+id/reloadimg"
+			android:icon="@drawable/replay"
+			android:title="Recharger planning actuel"
+			android:titleCondensed="Recharger"/>
+	<item
+			android:id="@+id/deleteall"
+			android:title="Supprimer toutes les images"
+			android:titleCondensed="Suppr tout"/>
+	<item
+			android:id="@+id/exit"
+			android:title="Quitter"/>
+
+
+
 </menu>
