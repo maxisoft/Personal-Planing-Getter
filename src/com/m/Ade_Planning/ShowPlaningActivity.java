@@ -2,8 +2,6 @@ package com.m.Ade_Planning;
 
 import android.app.ActionBar;
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.graphics.Point;
 import android.os.AsyncTask;
@@ -48,12 +46,23 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
     private Animation closedefault = null;
     private Animation openleft = null;
     private Animation closeleft = null;
+    private SubMenu submenu;
+    private int screen_width;
+    private int screen_height;
+    private boolean first_start = false;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         this.setTheme(android.R.style.Theme_Holo);
         super.onCreate(savedInstanceState);
         restoreFromSavedInstanceState(savedInstanceState);
+
+        Point size = new Point();
+        Display display = ShowPlaningActivity.this.getWindowManager().getDefaultDisplay();
+        display.getSize(size);
+        screen_width = size.x;
+        screen_height = size.y;
+
         testFileWriting();
         preferences = PreferenceManager.getDefaultSharedPreferences(this.getApplicationContext());
         prefeditor = preferences.edit();
@@ -139,23 +148,18 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
             @Override
             protected Void doInBackground(Object... params) {
                 try {
-
-                    Display display = ShowPlaningActivity.this.getWindowManager().getDefaultDisplay();
-                    Point size = new Point();
-                    display.getSize(size);
-                    final int width = size.x;
-                    final int height = size.y;
                     String urltoload;
 
-                    String filename = ShowPlaningActivity.this.storage.createFileName(getGroupePreference(), ShowPlaningActivity.this.date, width, height);
+                    String filename = ShowPlaningActivity.this.storage.createFileName(getGroupePreference(), ShowPlaningActivity.this.date, screen_width, screen_height);
                     if (ShowPlaningActivity.this.storage.fileExist(filename)) { //check if alrdy downloaded.
                         urltoload = ShowPlaningActivity.this.storage.createFileNameUrlAdress(filename);
                     } else {//download and try to store the img
-                        String url = ShowPlaningActivity.this.planning.getPlanningImgUrl();
+                        final int week = PlaningUtils.dateToADEWeek(ShowPlaningActivity.this.date);
+                        String url = ShowPlaningActivity.this.planning.getPlanningImgUrl(week);
                         PlaningUrl planing = new PlaningUrl(url);
-                        planing.setHeight(height * 2);
-                        planing.setWidth(width * 2);
-                        planing.setWeek(PlaningUtils.dateToADEWeek(ShowPlaningActivity.this.date));
+                        planing.setHeight(screen_height * 2);
+                        planing.setWidth(screen_width * 2);
+                        planing.setWeek(week);
                         urltoload = planing.toString();
                         try {
                             ShowPlaningActivity.this.storage.store(planing, filename);
@@ -238,6 +242,8 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
         inflater.inflate(R.menu.main, menu);
         boolean ret = super.onCreateOptionsMenu(menu);
         this.menu = menu;
+        this.submenu = this.menu.findItem(R.id.configgroupe).getSubMenu();
+        this.submenu.setHeaderIcon(R.drawable.ic_action_settings);//TODO
         this.actionBar = getActionBar();
         this.updateDateTitleActionBar();
         initCheckableTPItemMenu(getGroupePreference());
@@ -258,11 +264,38 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
                 nextCalendar();
                 return true;
 
+            case R.id.reloadimg:
+                String filename = this.storage.createFileName(getGroupePreference(), ShowPlaningActivity.this.date, screen_width, screen_height);
+                if (ShowPlaningActivity.this.storage.fileExist(filename)) { //check if alrdy downloaded.
+                    File f = new File(filename);
+                    f.delete();
+                }
+                this.fetch_planning();
+                return true;
+            case R.id.exit:
+                finish();
+                return true;
+            case R.id.deleteall:
+                for (File file : PlaningUtils.listFiles()) {
+                    if (!file.delete()) {
+                        final String fname = file.getName();
+                        ShowPlaningActivity.this.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                final Toast toast = Toast.makeText(ShowPlaningActivity.this.getApplicationContext(), "Impossible de supprimer le fichier :" + fname, Toast.LENGTH_LONG);
+                                toast.show();
+                            }
+                        });
+                    }
+                }
+                this.fetch_planning();
+                return true;
+
             case R.id.itemTP1A:
             case R.id.itemTP1B:
             case R.id.itemTP2B:
             case R.id.itemTP2C:
-                this.uncheckItemsMenu();
+                this.uncheckItemsSubMenu();
                 item.setChecked(true);
                 String value = item.getTitle().toString();
                 boolean change = !getGroupePreference().equals(value);
@@ -272,6 +305,13 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
                 if (change) {
                     this.fetch_planning();
                 }
+                if (this.first_start) {
+                    final MenuItem configgrp = this.menu.findItem(R.id.configgroupe);
+                    CharSequence s = configgrp.getTitle();
+                    configgrp.setTitle(s.toString().replace("<h2><b>", "").replace("</b></h2>", ""));
+                    this.first_start = false;
+                }
+
                 return true;
         }
         return false;
@@ -279,9 +319,9 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
 
     private void initCheckableTPItemMenu(String s) {
         assert s.startsWith("TP");
-        int size = this.menu.size();
+        int size = submenu.size();
         for (int i = 0; i < size; i++) {
-            MenuItem item = this.menu.getItem(i);
+            MenuItem item = submenu.getItem(i);
             if (item.isCheckable() && item.getTitle().toString().equals(s)) {
                 item.setChecked(true);
             } else {
@@ -290,14 +330,14 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
         }
     }
 
-    private void uncheckItemsMenu() {
-        int size = this.menu.size();
+    private void uncheckItemsSubMenu() {
+        SubMenu submenu = this.menu.findItem(R.id.configgroupe).getSubMenu();
+        int size = submenu.size();
         for (int i = 0; i < size; i++) {
-            MenuItem item = this.menu.getItem(i);
+            MenuItem item = submenu.getItem(i);
             if (item.isCheckable() && item.getTitle().toString().startsWith("TP")) {
                 item.setChecked(false);
             }
-
         }
     }
 
@@ -312,37 +352,19 @@ public class ShowPlaningActivity extends Activity implements CONSTANTS {
     }
 
     @Override
-    public void onBackPressed() {
-        new AlertDialog.Builder(this)
-                .setTitle("Suppresion des Images Téléchargées")
-                .setMessage("Supprimer toutes les images de plannings ?")
-                .setNegativeButton(android.R.string.no, null)
-                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-
-                    public void onClick(DialogInterface arg0, int arg1) {
-                        for (File file : PlaningUtils.listFiles()) {
-                            try {
-                                file.delete();
-                            } catch (final Exception e) {
-                                Log.e(ADE_PLANNING_LOG_IDENTIFIER, "", e);
-                                ShowPlaningActivity.this.runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        final Toast toast = Toast.makeText(ShowPlaningActivity.this.getApplicationContext(), e.getMessage(), Toast.LENGTH_LONG);
-                                        toast.show();
-                                    }
-                                });
-                            }
-                        }
-                        ShowPlaningActivity.this.fetch_planning();
-                    }
-                }).create().show();
-    }
-
-    @Override
     protected void onSaveInstanceState(Bundle bundle) {
         super.onSaveInstanceState(bundle);
         bundle.putLong(BUNDLE_DATE_KEY, this.date.getTime());
     }
 
+    @Override
+    public void onAttachedToWindow() {
+        if (!preferences.contains(PREFERENCES_GROUPE_KEY)) {
+            this.first_start = true;
+            this.openOptionsMenu();
+            final MenuItem configgrp = this.menu.findItem(R.id.configgroupe);
+            CharSequence s = configgrp.getTitle();
+            configgrp.setTitle(Html.fromHtml("<h2><b>" + s + "</b></h2>"));
+        }
+    }
 }

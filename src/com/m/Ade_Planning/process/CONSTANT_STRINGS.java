@@ -10,7 +10,7 @@ public interface CONSTANT_STRINGS {
             "https://sedna.univ-fcomte.fr/jsp/standard/gui/tree.jsp?branchId=3950&expand=false&forceLoad=false&reload=false&scroll=0"};
 
     public static final String SELECT_IDS_URL = "https://sedna.univ-fcomte.fr/jsp/standard/gui/tree.jsp?selectId=%s&reset=false&forceLoad=false&scroll=0";
-    public static final String BOUNDS_URL = "https://sedna.univ-fcomte.fr/jsp/custom/modules/plannings/bounds.jsp?clearTree=false";
+    public static final String BOUNDS_URL = "https://sedna.univ-fcomte.fr/jsp/custom/modules/plannings/bounds.jsp?clearTree=false&week=24&reset=true";
     public static final String IMAGEMAP_URL = "https://sedna.univ-fcomte.fr/jsp/custom/modules/plannings/imagemap.jsp?clearTree=false&width=1543&height=624";
 
     public static final String START_PATTERN = "<img border=0 src=\"https://sedna.univ-fcomte.fr/";

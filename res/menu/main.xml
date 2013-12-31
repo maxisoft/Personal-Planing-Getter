@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
 	<item android:id="@+id/configgroupe"
 	      android:title="Configurer groupe"
 	      android:icon="@drawable/ic_action_settings"
@@ -27,12 +27,11 @@
 			android:titleCondensed="Recharger"/>
 	<item
 			android:id="@+id/deleteall"
-			android:title="Supprimer toutes les images"
+			android:title="Supprimer toutes les plannings"
 			android:titleCondensed="Suppr tout"/>
 	<item
 			android:id="@+id/exit"
 			android:title="Quitter"/>
-
 
 
 </menu>

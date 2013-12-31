@@ -37,10 +37,11 @@ public class PlanningImageGrabber implements CONSTANT_STRINGS {
         return String.format(SELECT_IDS_URL, this.getGroupeid());
     }
 
-    public String getPlanningImgUrl() throws IOException, PlanningGrabberException {
+    public String getPlanningImgUrl(final int week) throws IOException, PlanningGrabberException {
         this.fetchCookies();
         URLConnectionHelper.connect(this.formatSelectIdUrl());
-        URLConnectionHelper.connect(BOUNDS_URL);
+
+        URLConnectionHelper.connect(BOUNDS_URL.replace("&week=24", "&week=" + week));
         String s = URLConnectionHelper.read(IMAGEMAP_URL);
         return this.extractUrl(s).replace("&idPianoDay=0%2C1%2C2%2C3%2C4%2C5%2C6", "&idPianoDay=0%2C1%2C2%2C3%2C4");
     }
